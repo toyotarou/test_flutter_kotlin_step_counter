@@ -4,92 +4,95 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
-import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import com.example.test_flutter_kotlin_step_counter.db.AppDatabase
 import com.example.test_flutter_kotlin_step_counter.db.StepRecord
-import kotlinx.coroutines.*
-import java.text.SimpleDateFormat
-import java.util.*
+import com.example.test_flutter_kotlin_step_counter.util.StepDataManager
+import com.example.test_flutter_kotlin_step_counter.util.StepSensorManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class StepUpdateService : Service() {
+    private val TAG = "StepUpdateService"
+    private var stepSensorManager: StepSensorManager? = null
 
-    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private var isRunning = true
+    companion object {
+        @Volatile
+        var isRunning = false
+    }
 
     override fun onCreate() {
         super.onCreate()
-        startForeground(1, createNotification())
-        startStepSavingLoop()
-    }
+        Log.d(TAG, "🟢 onCreate() called")
+        isRunning = true
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        return START_STICKY
+        // Foreground Service の通知設定
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channelId = "step_update_channel"
+            val channel = NotificationChannel(
+                channelId,
+                "Step Update Service",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
+            Log.d(TAG, "🔔 NotificationChannel 作成")
+
+            val notification: Notification = Notification.Builder(this, channelId)
+                .setContentTitle("歩数記録中")
+                .setContentText("センサーから歩数を記録しています")
+                .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+                .build()
+
+            startForeground(1, notification)
+            Log.d(TAG, "📢 Foreground通知開始")
+        }
+
+        // センサー登録と保存処理
+        stepSensorManager = StepSensorManager(this) { steps ->
+            Log.d(TAG, "🚶 歩数更新イベント: steps=$steps")
+            StepDataManager.saveTodayStep(this, steps.toInt())
+
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val today = StepDataManager.getTodayDate()
+                    val nowTime = StepDataManager.getCurrentTime()
+                    val dao = AppDatabase.getDatabase(applicationContext).stepDao()
+                    Log.d(TAG, "📅 今日の日付: $today, 現在時刻: $nowTime")
+
+                    val existing = dao.getByDate(today)
+                    if (existing != null) {
+                        val updated = existing.copy(step = steps.toInt(), time = nowTime)
+                        dao.update(updated)
+                        Log.d(TAG, "📝 DB更新成功: $updated")
+                    } else {
+                        val record = StepRecord(date = today, time = nowTime, step = steps.toInt())
+                        dao.insert(record)
+                        Log.d(TAG, "🆕 DB新規挿入成功: $record")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "❌ DB保存処理中にエラー: ${e.message}", e)
+                }
+            }
+        }
+
+        Log.d(TAG, "📡 センサー登録開始")
+        stepSensorManager?.register()
     }
 
     override fun onDestroy() {
-        super.onDestroy()
+        Log.d(TAG, "🔴 onDestroy() called")
+        stepSensorManager?.unregister()
         isRunning = false
-        serviceScope.cancel()
+        super.onDestroy()
     }
 
-    override fun onBind(intent: Intent?): IBinder? = null
-
-    private fun startStepSavingLoop() {
-        val dao = AppDatabase.getInstance(applicationContext).stepDao()
-
-        serviceScope.launch {
-            while (isRunning) {
-                val now = System.currentTimeMillis()
-                val epoch = (now / 1000L).toInt()
-
-                val today = getToday()
-                val nowTime = getTime()
-
-                val record = dao.getByDate(today)
-                if (record == null) {
-                    dao.insert(StepRecord(date = today, time = nowTime, step = epoch))
-                } else {
-                    dao.update(record.copy(time = nowTime, step = epoch))
-                }
-
-                delay(60_000L) // 60秒待機
-            }
-        }
+    override fun onBind(intent: Intent?): IBinder? {
+        Log.d(TAG, "🔗 onBind() called -> null返却")
+        return null
     }
-
-    private fun createNotification(): Notification {
-        val channelId = "step_service_channel"
-        val channelName = "Step Counter Service"
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val chan = NotificationChannel(
-                channelId,
-                channelName,
-                NotificationManager.IMPORTANCE_LOW
-            )
-            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            manager.createNotificationChannel(chan)
-        }
-
-        return Notification.Builder(this, channelId)
-            .setContentTitle("歩数記録中")
-            .setContentText("アプリが1分ごとに歩数を保存します")
-            .setSmallIcon(android.R.drawable.ic_menu_compass)
-            .build()
-    }
-
-    private fun getToday(): String {
-        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        return sdf.format(Date())
-    }
-
-    private fun getTime(): String {
-        val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-        return sdf.format(Date())
-    }
-
 }

@@ -7,16 +7,14 @@ import android.os.Build
 import android.util.Log
 
 class BootReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            Log.d("BootReceiver", "✅ 端末再起動後：BOOT_COMPLETED受信")
+    override fun onReceive(context: Context, intent: Intent?) {
+        Log.d("BootReceiver", "🔄 Boot completed. Starting StepUpdateService.")
+        val serviceIntent = Intent(context, StepUpdateService::class.java)
 
-            val serviceIntent = Intent(context, StepUpdateService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(serviceIntent)
-            } else {
-                context.startService(serviceIntent)
-            }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(serviceIntent)
+        } else {
+            context.startService(serviceIntent)
         }
     }
 }

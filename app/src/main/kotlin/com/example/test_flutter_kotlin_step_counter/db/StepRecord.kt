@@ -5,10 +5,8 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "step_record")
 data class StepRecord(
-    @PrimaryKey(autoGenerate = true)
-    val id: Int = 0,
-
-    val date: String,   // yyyy-MM-dd
-    val time: String,   // HH:mm:ss
-    val step: Int       // 累積歩数 or epoch 秒（仮値）
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val date: String,
+    val time: String,
+    val step: Int
 )

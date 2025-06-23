@@ -12,6 +12,7 @@ object StepServiceManager {
         } else {
             context.startService(intent)
         }
+        StepUpdateService.isRunning = true  // 起動時に true にしておく
     }
 
     fun stop(context: Context) {

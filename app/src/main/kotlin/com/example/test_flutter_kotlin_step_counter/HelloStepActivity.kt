@@ -19,9 +19,11 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.test_flutter_kotlin_step_counter.db.AppDatabase
 import com.example.test_flutter_kotlin_step_counter.db.StepRecord
+import com.example.test_flutter_kotlin_step_counter.service.StepServiceManager
 import com.example.test_flutter_kotlin_step_counter.util.StepDataManager
 import com.example.test_flutter_kotlin_step_counter.util.StepSensorManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -51,6 +53,29 @@ class HelloStepActivity : ComponentActivity() {
             val stepListState = remember { mutableStateOf(listOf<StepRecord>()) }
             val scope = rememberCoroutineScope()
             val stepValue by steps
+            val countdown = remember { mutableStateOf(60) }
+
+            // カウントダウンを1秒ごとに更新
+            LaunchedEffect(Unit) {
+                while (true) {
+                    delay(1000)
+                    countdown.value = (countdown.value - 1).coerceAtLeast(0)
+                    if (countdown.value == 0) {
+                        countdown.value = 60
+                    }
+                }
+            }
+
+            // Roomのデータを5秒ごとに再取得
+            LaunchedEffect(Unit) {
+                while (true) {
+                    delay(5000)
+                    val list = withContext(Dispatchers.IO) {
+                        stepDao.getAll()
+                    }
+                    stepListState.value = list
+                }
+            }
 
             Surface(modifier = Modifier.fillMaxSize()) {
                 Column(
@@ -59,6 +84,10 @@ class HelloStepActivity : ComponentActivity() {
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text("👣 現在の歩数: $stepValue")
+                    Text(
+                        "⏳ 次の保存まで: ${countdown.value} 秒",
+                        style = MaterialTheme.typography.titleSmall
+                    )
 
                     Button(onClick = {
                         scope.launch(Dispatchers.IO) {
@@ -90,7 +119,7 @@ class HelloStepActivity : ComponentActivity() {
                             }
                         }
                     }) {
-                        Text("🦶 今日のステップを保存/更新")
+                        Text("🦶 手動で保存/更新")
                     }
 
                     Button(onClick = {
@@ -102,6 +131,19 @@ class HelloStepActivity : ComponentActivity() {
                         }
                     }) {
                         Text("🗑 データを全削除")
+                    }
+
+                    Button(onClick = {
+                        StepServiceManager.start(this@HelloStepActivity)
+                        countdown.value = 60
+                    }) {
+                        Text("▶️ サービス開始")
+                    }
+
+                    Button(onClick = {
+                        StepServiceManager.stop(this@HelloStepActivity)
+                    }) {
+                        Text("⏹ サービス停止")
                     }
 
                     Divider(modifier = Modifier.padding(vertical = 8.dp))

@@ -22,7 +22,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.test_flutter_kotlin_hello_world"
+        applicationId = "com.example.test_flutter_kotlin_step_counter"
         minSdk = 24
         targetSdk = 34
         versionCode = flutter.versionCode

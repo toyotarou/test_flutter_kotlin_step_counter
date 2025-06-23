@@ -9,5 +9,6 @@ data class StepRecord(
     val id: Int = 0,
 
     val date: String,   // yyyy-MM-dd
-    val step: Int       // 前日分の歩数
+    val time: String,   // HH:mm:ss
+    val step: Int       // 累積歩数 or epoch 秒（仮値）
 )

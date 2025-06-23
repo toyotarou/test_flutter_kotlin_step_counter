@@ -8,19 +8,37 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.example.test_flutter_kotlin_step_counter.db.AppDatabase
+import com.example.test_flutter_kotlin_step_counter.db.StepRecord
+import com.example.test_flutter_kotlin_step_counter.util.StepDataManager
 import com.example.test_flutter_kotlin_step_counter.util.StepSensorManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.*
 
 class HelloStepActivity : ComponentActivity() {
 
     private lateinit var stepSensorManager: StepSensorManager
 
+    companion object {
+        val steps = mutableStateOf(0)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val db = AppDatabase.getDatabase(applicationContext)
+        val stepDao = db.stepDao()
 
         stepSensorManager = StepSensorManager(this) { stepCount ->
             Log.d("HelloStepActivity", "👣 歩数: $stepCount")
@@ -30,9 +48,72 @@ class HelloStepActivity : ComponentActivity() {
         checkPermissionAndStartSensor()
 
         setContent {
-            MaterialTheme {
-                val stepValue by remember { steps }
-                Text(text = "👣 現在の歩数: $stepValue")
+            val stepListState = remember { mutableStateOf(listOf<StepRecord>()) }
+            val scope = rememberCoroutineScope()
+            val stepValue by steps
+
+            Surface(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text("👣 現在の歩数: $stepValue")
+
+                    Button(onClick = {
+                        scope.launch(Dispatchers.IO) {
+                            val today = getToday()
+                            val nowTime = StepDataManager.getCurrentTime()
+                            val stepCount = steps.value
+                            val existing = stepDao.getByDate(today)
+
+                            if (existing == null) {
+                                stepDao.insert(
+                                    StepRecord(
+                                        date = today,
+                                        time = nowTime,
+                                        step = stepCount
+                                    )
+                                )
+                            } else {
+                                stepDao.update(
+                                    existing.copy(
+                                        step = stepCount,
+                                        time = nowTime
+                                    )
+                                )
+                            }
+
+                            val list = stepDao.getAll()
+                            withContext(Dispatchers.Main) {
+                                stepListState.value = list
+                            }
+                        }
+                    }) {
+                        Text("🦶 今日のステップを保存/更新")
+                    }
+
+                    Button(onClick = {
+                        scope.launch(Dispatchers.IO) {
+                            stepDao.deleteAll()
+                            withContext(Dispatchers.Main) {
+                                stepListState.value = listOf()
+                            }
+                        }
+                    }) {
+                        Text("🗑 データを全削除")
+                    }
+
+                    Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    Text("📋 保存されたステップ一覧", style = MaterialTheme.typography.titleMedium)
+
+                    LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                        items(stepListState.value) { record ->
+                            Text("📅 ${record.date} ：👣 ${record.step} 歩（🕒 ${record.time}）")
+                        }
+                    }
+                }
             }
         }
     }
@@ -59,7 +140,8 @@ class HelloStepActivity : ComponentActivity() {
         stepSensorManager.unregister()
     }
 
-    companion object {
-        val steps = mutableStateOf(0)
+    private fun getToday(): String {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        return sdf.format(Date())
     }
 }

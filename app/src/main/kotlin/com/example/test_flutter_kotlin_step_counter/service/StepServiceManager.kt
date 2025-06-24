@@ -21,7 +21,7 @@ object StepServiceManager {
         StepUpdateService.isRunning = false
     }
 
-    fun isRunning(context: Context): Boolean {
-        return StepUpdateService.isRunning
-    }
+//    fun isRunning(context: Context): Boolean {
+//        return StepUpdateService.isRunning
+//    }
 }

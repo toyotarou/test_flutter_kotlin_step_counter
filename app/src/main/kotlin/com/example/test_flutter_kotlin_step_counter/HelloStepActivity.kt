@@ -20,8 +20,8 @@ import androidx.core.content.ContextCompat
 import com.example.test_flutter_kotlin_step_counter.db.AppDatabase
 import com.example.test_flutter_kotlin_step_counter.db.StepRecord
 import com.example.test_flutter_kotlin_step_counter.service.StepServiceManager
-import com.example.test_flutter_kotlin_step_counter.util.StepDataManager
-import com.example.test_flutter_kotlin_step_counter.util.StepSensorManager
+import com.example.test_flutter_kotlin_step_counter.sensors.StepDataManager
+import com.example.test_flutter_kotlin_step_counter.sensors.StepSensorManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

@@ -1,4 +1,4 @@
-package com.example.test_flutter_kotlin_step_counter.util
+package com.example.test_flutter_kotlin_step_counter.sensors
 
 import android.content.Context
 import android.hardware.Sensor

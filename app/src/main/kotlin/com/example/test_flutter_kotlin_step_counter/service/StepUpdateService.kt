@@ -9,7 +9,7 @@ import android.os.Looper
 import android.util.Log
 import com.example.test_flutter_kotlin_step_counter.db.AppDatabase
 import com.example.test_flutter_kotlin_step_counter.db.StepRecord
-import com.example.test_flutter_kotlin_step_counter.util.StepDataManager
+import com.example.test_flutter_kotlin_step_counter.sensors.StepDataManager
 import com.example.test_flutter_kotlin_step_counter.HelloStepActivity
 import kotlinx.coroutines.*
 

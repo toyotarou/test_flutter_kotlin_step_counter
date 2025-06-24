@@ -34,6 +34,16 @@ android {
 
     }
 
+    // ✅ 🔐 signingConfigs 追加
+    signingConfigs {
+        create("release") {
+            storeFile = file("/Users/toyodahideyuki/my-release-key.jks")
+            storePassword = "hidechy4819"
+            keyAlias = "my-key-alias"
+            keyPassword = "hidechy4819"
+        }
+    }
+
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("debug")
